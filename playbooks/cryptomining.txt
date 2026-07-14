@@ -1,0 +1,39 @@
+INCIDENT RESPONSE PLAYBOOK: CRYPTOMINING (UNAUTHORIZED)
+
+THREAT TYPE: Cryptomining Malware / Illicit Coin Mining
+SEVERITY: High to Critical
+
+DESCRIPTION:
+Unauthorized cryptomining occurs when malicious software or a rogue process
+hijacks a machine's CPU/GPU resources to mine cryptocurrency without the
+owner's consent. This is typically indicated by sustained near-100% CPU
+utilization even when the user is idle, unusual background processes,
+increased fan noise/heat, and degraded system performance.
+
+WHY IT IS DANGEROUS:
+1. Resource Theft: Consumes CPU/electricity, degrading performance for
+   legitimate business processes.
+2. Hardware Damage: Sustained 100% load can shorten hardware lifespan
+   through thermal stress.
+3. Entry Point Indicator: Often deployed after an initial compromise
+   (phishing, exploited service), meaning other malware may be present.
+4. Persistence Mechanisms: Cryptominers commonly install scheduled tasks
+   or services to survive reboots, making eradication harder.
+
+IMMEDIATE MITIGATION STEPS:
+1. Isolate the affected host from the network to stop mining pool
+   communication and prevent lateral movement.
+2. Identify and terminate the suspicious high-CPU process; note its
+   executable path and hash for forensic analysis.
+3. Check startup entries, scheduled tasks, and services for persistence
+   mechanisms and remove them.
+4. Run a full antivirus/EDR scan and review recent installed software.
+5. Reset credentials used on the host if compromise is suspected.
+6. Patch the vulnerability or close the entry point that allowed the
+   miner to be installed (e.g., unpatched service, weak RDP password).
+7. Document findings and preserve logs for forensic review.
+
+DETECTION INDICATORS:
+- CPU usage sustained above 95% for multiple consecutive polling cycles.
+- High CPU with abnormally low corresponding user activity.
+- Unrecognized processes consuming excessive compute resources.

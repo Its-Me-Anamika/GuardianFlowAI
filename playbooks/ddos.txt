@@ -1,0 +1,39 @@
+INCIDENT RESPONSE PLAYBOOK: DDoS / ABNORMAL NETWORK TRAFFIC
+
+THREAT TYPE: Distributed Denial of Service (DDoS) / Network Flood
+SEVERITY: High to Critical
+
+DESCRIPTION:
+A DDoS or network flood event occurs when a host sends or receives an
+abnormally large volume of network traffic in a short period, either as
+the victim of an attack or as a compromised participant in a botnet
+being used to attack another target. Indicators include a sudden spike
+in packets-per-second, bytes sent/received, or open connections compared
+to the established baseline.
+
+WHY IT IS DANGEROUS:
+1. Availability Loss: Legitimate services become slow or completely
+   unreachable, causing business and reputational damage.
+2. Bandwidth Exhaustion: Shared network links can be saturated,
+   affecting other systems on the same network segment.
+3. Botnet Participation: If the host is the SOURCE of the flood, it
+   likely means the machine itself is compromised and part of a botnet.
+4. Smokescreen Tactic: DDoS traffic is sometimes used to distract
+   security teams while a separate, quieter intrusion takes place.
+
+IMMEDIATE MITIGATION STEPS:
+1. Determine direction of traffic: is this host a victim or a source?
+2. If a source (compromised bot), isolate the host from the network
+   immediately and begin malware remediation.
+3. If a victim, engage upstream ISP/CDN-level DDoS mitigation
+   (rate limiting, scrubbing, or a dedicated anti-DDoS service).
+4. Apply firewall rules to drop traffic from identified malicious IPs
+   or IP ranges.
+5. Scale or fail over affected services if infrastructure allows.
+6. Monitor for a secondary, quieter attack occurring simultaneously.
+7. Document traffic patterns and timestamps for post-incident analysis.
+
+DETECTION INDICATORS:
+- Sudden abnormal spike in network bytes sent/received vs. baseline.
+- Unusually high number of concurrent connections.
+- Traffic pattern inconsistent with normal user behavior on the host.

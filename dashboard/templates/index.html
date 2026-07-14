@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GuardianFlow AI - Live Security Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <header class="topbar">
+    <h1>🛡️ GuardianFlow AI &mdash; Live Monitoring Dashboard</h1>
+    <span class="status-pill" id="connection-status">Connecting...</span>
+  </header>
+
+  <main>
+
+    <div class="card">
+      <h2>Live CPU Usage</h2>
+      <div class="metric-value" id="live-cpu">--%</div>
+    </div>
+
+    <div class="card">
+      <h2>Live RAM Usage</h2>
+      <div class="metric-value" id="live-ram">--%</div>
+    </div>
+
+    <div class="card">
+      <h2>Low / Medium Threats</h2>
+      <div class="metric-value"><span id="count-low">0</span> / <span id="count-medium">0</span></div>
+    </div>
+
+    <div class="card">
+      <h2>High / Critical Threats</h2>
+      <div class="metric-value"><span id="count-high">0</span> / <span id="count-critical">0</span></div>
+    </div>
+
+    <div class="card span-4">
+      <h2>Connected Clients</h2>
+      <div id="connected-clients"></div>
+    </div>
+
+    <div class="card span-4">
+      <h2>Recent Logs</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Client</th>
+            <th>CPU</th>
+            <th>RAM</th>
+            <th>Severity</th>
+            <th>Threat Type</th>
+          </tr>
+        </thead>
+        <tbody id="logs-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="card span-4">
+      <h2>Threat Cards (AI Explanation + Forensic Hash)</h2>
+      <div id="threat-reports"></div>
+    </div>
+
+  </main>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

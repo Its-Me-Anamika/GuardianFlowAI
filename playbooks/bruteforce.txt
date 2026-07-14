@@ -1,0 +1,39 @@
+INCIDENT RESPONSE PLAYBOOK: BRUTE FORCE LOGIN ATTEMPT
+
+THREAT TYPE: Brute Force / Credential Stuffing
+SEVERITY: Medium to High
+
+DESCRIPTION:
+A brute force attack involves an attacker (or automated script) repeatedly
+attempting to log in to an account or service using many different
+password combinations. This is detected via an abnormally high number of
+failed login attempts within a short time window, often targeting a single
+account or a shared service such as RDP, SSH, or a web login form.
+
+WHY IT IS DANGEROUS:
+1. Account Compromise: Given enough attempts, weak or reused passwords
+   can eventually be guessed, granting the attacker access.
+2. Lateral Movement Risk: A compromised account can be used to pivot
+   deeper into the network.
+3. Service Disruption: High-volume login attempts can degrade
+   authentication service performance for legitimate users.
+4. Precursor to Larger Attack: Brute forcing is often a reconnaissance
+   or initial-access step before ransomware or data exfiltration.
+
+IMMEDIATE MITIGATION STEPS:
+1. Temporarily lock or rate-limit the targeted account to stop further
+   guessing attempts.
+2. Block or throttle the source IP address(es) at the firewall level.
+3. Enforce multi-factor authentication (MFA) on the affected account
+   and, ideally, organization-wide.
+4. Review authentication logs to confirm whether any attempt succeeded;
+   if so, treat the account as compromised and force a password reset.
+5. Enable account lockout policies after N failed attempts.
+6. Consider deploying fail2ban-style tooling or a Web Application
+   Firewall (WAF) rule to automatically block repeat offenders.
+7. Notify the user of the affected account and advise a password change.
+
+DETECTION INDICATORS:
+- Multiple (5+) failed login attempts within a short time window.
+- Failed attempts originating from the same source in rapid succession.
+- Login attempts outside normal working hours or from unusual locations.
