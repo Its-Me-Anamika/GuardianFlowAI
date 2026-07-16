@@ -55,7 +55,12 @@ function renderThreatReports(reports) {
     <div class="threat-card">
       <div><strong>${r.client_name}</strong> &mdash; ${threatBadge(r.threat_level)}
         <span style="color:#8fa1bd;">(${r.threat_type})</span></div>
-      <p style="margin:8px 0; font-size:13px;">${escapeHtml(r.explanation)}</p>
+      <p style="margin:8px 0; font-size:13px; white-space:pre-line;">
+      
+      ${escapeHtml(r.explanation)}
+      
+      </p>
+      
       ${r.recommended_actions && r.recommended_actions.length
         ? `<ul class="actions">${r.recommended_actions.map(a => `<li>${escapeHtml(a)}</li>`).join("")}</ul>`
         : ""}

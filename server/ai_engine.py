@@ -13,35 +13,23 @@ Set your Gemini API key as an environment variable before running:
 """
 
 import os
-import google.generativeai as genai
+from dotenv import load_dotenv
+from openai import OpenAI
+
+load_dotenv()
 
 PLAYBOOKS_DIR = os.path.join(os.path.dirname(__file__), "..", "playbooks")
 
-# Maps detector.py's threat_type labels to playbook filenames.
-# Anything not in this map falls back to a generic explanation.
 THREAT_TYPE_TO_PLAYBOOK = {
     "cryptomining": "cryptomining.txt",
     "bruteforce": "bruteforce.txt",
     "ddos": "ddos.txt",
 }
 
-_GEMINI_CONFIGURED = False
-
-
-def _configure_gemini():
-    """Configure the Gemini client once, using the API key from env vars."""
-    global _GEMINI_CONFIGURED
-    if _GEMINI_CONFIGURED:
-        return
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "GEMINI_API_KEY environment variable not set. "
-            "Set it before starting the server."
-        )
-    genai.configure(api_key=api_key)
-    _GEMINI_CONFIGURED = True
-
+client = OpenAI(
+    api_key=os.getenv("GROQ_API_KEY"),
+    base_url="https://api.groq.com/openai/v1"
+)
 
 def retrieve_playbook(threat_type: str) -> str:
     """
@@ -71,17 +59,30 @@ def _build_prompt(threat_type: str, reason: str, threat_level: str, playbook_tex
     live detection details with the retrieved playbook text.
     """
     return (
-        f"Explain the following cybersecurity event in plain English.\n\n"
-        f"Detected Threat Type: {threat_type}\n"
-        f"Severity Level: {threat_level}\n"
-        f"Detection Reason: {reason}\n\n"
-        f"Use this specific incident response playbook as grounding context:\n"
-        f"---\n{playbook_text}\n---\n\n"
-        f"Based strictly on the playbook above, explain why this is dangerous "
-        f"and recommend immediate mitigation steps. Keep the explanation "
-        f"concise (5-8 sentences) and easy for a non-expert to understand. "
-        f"Then list 3-5 recommended actions as short bullet points."
-    )
+    f"You are a cybersecurity SOC analyst.\n\n"
+
+    f"Threat: {threat_type}\n"
+    f"Severity: {threat_level}\n"
+    f"Reason: {reason}\n\n"
+
+    f"Playbook:\n{playbook_text}\n\n"
+
+    "Respond ONLY in this format:\n\n"
+
+    "Explanation:\n"
+    "Write ONLY 2 short sentences explaining the threat in simple English.\n\n"
+
+    "Actions:\n"
+    "- action 1\n"
+    "- action 2\n"
+    "- action 3\n\n"
+
+    "Put EACH action on a NEW LINE.\n"
+    "Do NOT write everything in one paragraph.\n"
+    "Do NOT use markdown (** or #).\n"
+    "Do NOT use **.\n"
+    "Do NOT repeat anything."
+)
 
 
 def explain_threat(threat_type: str, reason: str, threat_level: str) -> dict:
@@ -105,13 +106,23 @@ def explain_threat(threat_type: str, reason: str, threat_level: str) -> dict:
     prompt = _build_prompt(threat_type, reason, threat_level, playbook_text)
 
     try:
-        _configure_gemini()
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        explanation_text = response.text.strip()
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a cybersecurity incident response assistant."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.3
+        )
+
+        explanation_text = response.choices[0].message.content.strip()
     except Exception as e:
-        # Graceful fallback if the API key is missing or the call fails,
-        # so the demo doesn't break if internet/API is unavailable.
         explanation_text = (
             f"[AI explanation unavailable: {e}]\n\n"
             f"Fallback summary from playbook:\n{playbook_text[:400]}..."

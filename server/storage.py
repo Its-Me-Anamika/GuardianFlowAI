@@ -127,15 +127,13 @@ def get_connected_clients(active_window_seconds: int = 30) -> list:
     treating them as "currently connected" for the dashboard.
     """
     _ensure_file_exists()
-    now = datetime.now().astimezone()
+    now = datetime.now()
     seen = {}
     with open(LOGS_FILE, mode="r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             try:
                 ts = datetime.fromisoformat(row["timestamp"])
-                if ts.tzinfo is None:
-                    ts = ts.astimezone()
             except (ValueError, KeyError):
                 continue
             seen[row["client_name"]] = ts
