@@ -123,24 +123,36 @@ def count_threats_by_level() -> dict:
 
 def get_connected_clients(active_window_seconds: int = 30) -> list:
     """
-    Determine which clients have sent a log within the last N seconds,
-    treating them as "currently connected" for the dashboard.
+    Return clients that have sent logs recently.
     """
     _ensure_file_exists()
+
     now = datetime.now()
     seen = {}
+
     with open(LOGS_FILE, mode="r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
+
         for row in reader:
             try:
                 ts = datetime.fromisoformat(row["timestamp"])
             except (ValueError, KeyError):
                 continue
-            seen[row["client_name"]] = ts
+
+            seen[row["client_name"]] = {
+                "logged_in_user": row.get("logged_in_user") or row.get("client_name"),
+                "last_seen": ts
+            }
 
     connected = []
-    for client_name, last_seen in seen.items():
-        seconds_ago = (now - last_seen).total_seconds()
+
+    for _, info in seen.items():
+        seconds_ago = (now - info["last_seen"]).total_seconds()
+
         if seconds_ago <= active_window_seconds:
-            connected.append({"client_name": client_name, "seconds_ago": round(seconds_ago, 1)})
+            connected.append({
+                "logged_in_user": info["logged_in_user"],
+                "seconds_ago": round(seconds_ago, 1)
+            })
+
     return connected

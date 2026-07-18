@@ -140,6 +140,7 @@ def receive_logs():
             explanation=explanation_payload["explanation"],
         )
         _recent_reports.insert(0, {
+            "logged": data.get("logged_in_user", client_name),
             "client_name": client_name,
             "threat_type": threat_type,
             "threat_level": threat_level,
