@@ -67,16 +67,21 @@ def _validate_log_payload(data: dict):
     if not isinstance(data, dict):
         return False, "Payload must be a JSON object."
 
-    required_fields = ["client_name", "hostname", "ip_address", "timestamp",
-                        "cpu_usage", "ram_usage"]
+    required_fields = [
+    "client_name",
+    "hostname",
+    "ip_address",
+    "timestamp",
+    "event_id",
+    "event_source",
+    "event_time"
+]
     for field in required_fields:
         if field not in data:
             return False, f"Missing required field: {field}"
 
-    if not (0 <= float(data.get("cpu_usage", -1)) <= 100):
-        return False, "cpu_usage must be between 0 and 100."
-    if not (0 <= float(data.get("ram_usage", -1)) <= 100):
-        return False, "ram_usage must be between 0 and 100."
+    if int(data.get("event_id", 0)) <= 0:
+        return False, "Invalid Event ID."
 
     return True, None
 
@@ -91,6 +96,7 @@ def receive_logs():
     """
     try:
         data = request.get_json(force=True, silent=False)
+        print(data)
     except Exception:
         return jsonify({"status": "error", "message": "Invalid JSON payload."}), 400
 
@@ -110,6 +116,9 @@ def receive_logs():
     # --- Run ML detection ---
     try:
         result = detector.analyze(data)
+        print("\n========== RECEIVED EVENT ==========")
+        print(data)
+        print("====================================\n")
     except RuntimeError as e:
         return jsonify({"status": "error", "message": f"Detector not ready: {e}"}), 503
 
@@ -143,23 +152,34 @@ def receive_logs():
 
     # --- Persist to CSV ---
     log_entry = {
-        "timestamp": timestamp,
-        "client_name": client_name,
-        "ip_address": data.get("ip_address", ""),
-        "cpu_usage": data.get("cpu_usage", ""),
-        "ram_usage": data.get("ram_usage", ""),
-        "disk_usage": data.get("disk_usage", ""),
-        "process_count": data.get("process_count", ""),
-        "logged_in_user": data.get("logged_in_user", ""),
-        "failed_logins": data.get("failed_logins", 0),
-        "firewall_disabled": data.get("firewall_disabled", 0),
-        "network_bytes_sent": data.get("network_bytes_sent", 0),
-        "network_bytes_recv": data.get("network_bytes_recv", 0),
-        "usb_connected": data.get("usb_connected", 0),
-        "threat_level": threat_level,
-        "threat_type": threat_type,
-        "confidence_score": confidence,
-    }
+    "timestamp": timestamp,
+    "client_name": client_name,
+
+    "hostname": data.get("hostname"),
+    "ip_address": data.get("ip_address"),
+    "logged_in_user": data.get("logged_in_user"),
+
+    "event_id": data.get("event_id"),
+    "event_source": data.get("event_source"),
+    "event_type": data.get("event_type"),
+    "event_time": data.get("event_time"),
+
+    # LIVE SYSTEM METRICS
+    "cpu_usage": data.get("cpu_usage"),
+    "ram_usage": data.get("ram_usage"),
+    "disk_usage": data.get("disk_usage"),
+    "process_count": data.get("process_count"),
+    "failed_logins": data.get("failed_logins"),
+    "firewall_disabled": data.get("firewall_disabled"),
+    "network_bytes_sent": data.get("network_bytes_sent"),
+    "network_bytes_recv": data.get("network_bytes_recv"),
+    "usb_connected": data.get("usb_connected"),
+
+    # AI OUTPUT
+    "threat_level": threat_level,
+    "threat_type": threat_type,
+    "confidence_score": confidence,
+}
     storage.save_log(log_entry)
 
     return jsonify({
@@ -183,7 +203,7 @@ def dashboard_data():
         "connected_clients": storage.get_connected_clients(),
         "threat_counts": storage.count_threats_by_level(),
         "recent_reports": _recent_reports[:10],
-        "server_time": datetime.now(timezone.utc).isoformat(),
+        "server_time": datetime.now().astimezone().isoformat()
     })
 
 

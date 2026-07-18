@@ -22,7 +22,7 @@ from attack_simulator import prompt_for_attack_choice, apply_attack_simulation
 
 # --- Configuration -----------------------------------------------------
 # Change this to the central server's LAN IP address, e.g. "192.168.1.10"
-SERVER_IP = "192.168.1.10"
+SERVER_IP = "127.0.0.1"
 SERVER_PORT = 5000
 SERVER_URL = f"http://{SERVER_IP}:{SERVER_PORT}/logs"
 
@@ -67,12 +67,17 @@ def send_log(payload: dict) -> bool:
 
 def build_payload(attack_choice: str = "0") -> dict:
     """Collect a fresh system snapshot and optionally overlay an attack simulation."""
+
     snapshot = collect_system_snapshot()
+
+    if snapshot is None:
+        return None
 
     if attack_choice != "0":
         snapshot = apply_attack_simulation(snapshot, attack_choice)
 
-    snapshot["client_name"] = CLIENT_NAME
+    snapshot["client_name"] = snapshot["logged_in_user"]  # For backward compatibility with server.py
+
     snapshot["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
     return snapshot
 
@@ -81,11 +86,22 @@ def run_normal_loop():
     """Continuously send normal telemetry every SEND_INTERVAL_SECONDS."""
     print(f"[client.py] Starting normal monitoring loop. Sending to {SERVER_URL} "
           f"every {SEND_INTERVAL_SECONDS}s. Press Ctrl+C to stop.")
+
     try:
         while True:
-            payload = build_payload(attack_choice="0")
+
+            payload = build_payload("0")
+
+            if payload is None:
+                time.sleep(SEND_INTERVAL_SECONDS)
+                continue
+
+            print(payload)
+
             send_log(payload)
+
             time.sleep(SEND_INTERVAL_SECONDS)
+
     except KeyboardInterrupt:
         print("\n[client.py] Stopped by user.")
 
@@ -100,9 +116,17 @@ def run_interactive_loop():
     try:
         while True:
             choice = prompt_for_attack_choice()
-            payload = build_payload(attack_choice=choice)
+            
+            payload = build_payload(choice)
+            
+            if payload is None:
+                time.sleep(SEND_INTERVAL_SECONDS)
+                continue
+            
             send_log(payload)
+            
             time.sleep(SEND_INTERVAL_SECONDS)
+    
     except KeyboardInterrupt:
         print("\n[client.py] Stopped by user.")
 

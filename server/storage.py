@@ -16,10 +16,34 @@ LOGS_FILE = os.path.join(LOGS_DIR, "received_logs.csv")
 
 # Column order for the CSV file
 FIELDNAMES = [
-    "timestamp", "client_name", "ip_address", "cpu_usage", "ram_usage",
-    "disk_usage", "process_count", "logged_in_user", "failed_logins",
-    "firewall_disabled", "network_bytes_sent", "network_bytes_recv",
-    "usb_connected", "threat_level", "threat_type", "confidence_score",
+    "timestamp",
+    "client_name",
+    "hostname",
+    "ip_address",
+
+    "cpu_usage",
+    "ram_usage",
+    "disk_usage",
+    "process_count",
+
+    "logged_in_user",
+
+    "failed_logins",
+    "firewall_disabled",
+
+    "network_bytes_sent",
+    "network_bytes_recv",
+
+    "usb_connected",
+
+    "threat_level",
+    "threat_type",
+    "confidence_score",
+
+    "event_id",
+    "event_source",
+    "event_type",
+    "event_time"
 ]
 
 # A lock prevents corrupted writes if multiple clients POST at the
@@ -103,15 +127,13 @@ def get_connected_clients(active_window_seconds: int = 30) -> list:
     treating them as "currently connected" for the dashboard.
     """
     _ensure_file_exists()
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     seen = {}
     with open(LOGS_FILE, mode="r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             try:
                 ts = datetime.fromisoformat(row["timestamp"])
-                if ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=timezone.utc)
             except (ValueError, KeyError):
                 continue
             seen[row["client_name"]] = ts
