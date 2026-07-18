@@ -30,7 +30,6 @@
 - [Screenshots](#screenshots)
 - [Future Roadmap](#future-roadmap)
 - [Contributors](#contributors)
-- [License](#license)
 
 ---
 
