@@ -15,7 +15,7 @@ function renderConnectedClients(clients) {
     return;
   }
   container.innerHTML = clients
-    .map(c => `<span class="client-pill"><span class="dot"></span>${c.client_name}
+    .map(c => `<span class="client-pill"><span class="dot"></span>${c.logged_in_user}
       <small>(${c.seconds_ago}s ago)</small></span>`)
     .join("");
 }
@@ -29,7 +29,7 @@ function renderRecentLogs(logs) {
   tbody.innerHTML = logs.map(log => `
     <tr>
       <td>${log.timestamp || ""}</td>
-      <td>${log.client_name || ""}</td>
+      <td>${log.logged_in_user || ""}</td>
       <td>${log.cpu_usage || 0}%</td>
       <td>${log.ram_usage || 0}%</td>
       <td>${threatBadge(log.threat_level || "Low")}</td>
@@ -53,7 +53,7 @@ function renderThreatReports(reports) {
   }
   container.innerHTML = reports.map(r => `
     <div class="threat-card">
-      <div><strong>${r.client_name}</strong> &mdash; ${threatBadge(r.threat_level)}
+      <div><strong>${r.logged}</strong> &mdash; ${threatBadge(r.threat_level)}
         <span style="color:#8fa1bd;">(${r.threat_type})</span></div>
       <p style="margin:8px 0; font-size:13px; white-space:pre-line;">
       

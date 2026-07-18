@@ -76,7 +76,7 @@ def build_payload(attack_choice: str = "0") -> dict:
     if attack_choice != "0":
         snapshot = apply_attack_simulation(snapshot, attack_choice)
 
-    snapshot["client_name"] = CLIENT_NAME
+    snapshot["client_name"] = snapshot["logged_in_user"]  # For backward compatibility with server.py
 
     snapshot["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
     return snapshot

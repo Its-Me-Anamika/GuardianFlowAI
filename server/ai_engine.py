@@ -8,8 +8,6 @@ playbooks/ folder and inject it into the prompt. This "grounds" the
 explanation in our organization's specific protocols instead of
 letting the model rely purely on generic training knowledge.
 
-Set your Gemini API key as an environment variable before running:
-    Windows (PowerShell):  $env:GEMINI_API_KEY="your_key_here"
 """
 
 import os
