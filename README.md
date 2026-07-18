@@ -30,7 +30,6 @@
 - [Screenshots](#screenshots)
 - [Future Roadmap](#future-roadmap)
 - [Contributors](#contributors)
-- [License](#license)
 
 ---
 
@@ -432,23 +431,24 @@ There is currently no authentication on `/logs` or `/api/dashboard-data`, and no
 
 ---
 
-### Client Live windows eventt log Terminal
+### Client Live Windows Event Log Terminal
 
-![Client Terminal](screenshots\client-terminal.png)
+![Client Terminal](screenshots/client-terminal.png)
 
 ---
 
-### Client Interactive mode terminal
+### Client Interactive Mode Terminal
 
-![Client Terminal](screenshots\client-interactive_mode.png)
+![Client Interactive Mode](screenshots/client-interactive_mode.png)
 
 ---
 
 ### Server Terminal
 
-![Server Terminal](screenshots\server-terminal.png)
+![Server Terminal](screenshots/server-terminal.png)
 
 ---
+
 
 ## Future Roadmap
 
