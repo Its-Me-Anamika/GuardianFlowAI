@@ -61,9 +61,6 @@ function renderThreatReports(reports) {
       
       </p>
       
-      ${r.recommended_actions && r.recommended_actions.length
-        ? `<ul class="actions">${r.recommended_actions.map(a => `<li>${escapeHtml(a)}</li>`).join("")}</ul>`
-        : ""}
       <div class="hash">SHA-256: ${r.sha256_hash}</div>
     </div>
   `).join("");
