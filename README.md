@@ -333,15 +333,3 @@ Since this is a personal portfolio repository, active contributions are closed. 
 
 ---
 
-## 16. License
-
-No open-source license has currently been specified.
-
----
-
-## 17. Author
-
-*   **Anamika**
-*   **GitHub:** [GitHub Profile](https://github.com/)
-*   **LinkedIn:** [LinkedIn Profile](https://www.linkedin.com/)
-*   **Email:** [Professional Email](mailto:)
