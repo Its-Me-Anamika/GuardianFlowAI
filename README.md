@@ -29,17 +29,6 @@ Modern security operations center (SOC) environments struggle with two primary c
 
 ![GuardianFlowAI Dashboard](assets/dashboard.png)
 
-**Client Live Windows Event Log Terminal**
-
-![Client Live Windows Event Log Terminal](/assets/client_autosend.png)
-
-**Client Interactive Mode Terminal**
-
-![Client Interactive Mode Terminal](/assets/client_interactive.png)
-
-**Server Terminal**
-
-![Server Terminal](assets/server_console.png)
 ---
 
 ## 2. Key Features
