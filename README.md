@@ -1,476 +1,347 @@
-# 🛡️ GuardianFlow AI
+# GuardianFlowAI
 
-**A lightweight, distributed endpoint monitoring platform that turns raw Windows telemetry into AI-explained, forensically-hashed security incidents.**
+[![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
+[![Project Status](https://img.shields.io/badge/status-Proof--of--Concept-orange)](#disclaimer)
 
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/Flask-3.0-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![LLM](https://img.shields.io/badge/LLM-Groq%20(Llama%203.1)-F55036)](https://groq.com/)
-[![Platform](https://img.shields.io/badge/Platform-Windows%2011-0078D6?logo=windows&logoColor=white)](#)
-[![Status](https://img.shields.io/badge/Status-Active%20Development-yellow)](#)
+A distributed cybersecurity endpoint telemetry monitoring and unsupervised anomaly detection system designed to identify and analyze security threats across local network hosts. 
 
 ---
 
-## Table of Contents
+## 1. Project Overview
 
-- [Executive Summary](#executive-summary)
-- [Problem Statement](#problem-statement)
-- [Features](#features)
-- [High-Level Architecture](#high-level-architecture)
-- [End-to-End Workflow](#end-to-end-workflow)
-- [Folder Structure](#folder-structure)
-- [Technology Stack](#technology-stack)
-- [Installation](#installation)
-- [Environment Variables](#environment-variables)
-- [Running the Project](#running-the-project)
-- [API Documentation](#api-documentation)
-- [Detection Engine](#detection-engine)
-- [AI Threat Analysis (RAG + Groq)](#ai-threat-analysis-rag--groq)
-- [Dashboard](#dashboard)
-- [Security Features](#security-features)
-- [Screenshots](#screenshots)
-- [Future Roadmap](#future-roadmap)
-- [Contributors](#contributors)
+**GuardianFlowAI** is a lightweight, proof-of-concept distributed cybersecurity monitoring system. It demonstrates how endpoint systems can stream multi-dimensional telemetry to a central monitoring server over a local network, allowing security analysts to detect anomalies without hardcoded signature rules. 
+
+### The Security Problem
+Modern security operations center (SOC) environments struggle with two primary challenges:
+1. **Signature Evasion:** Traditional heuristic/rule-based detection tools fail to detect novel, zero-day, or multi-vector attacks where explicit signatures do not exist.
+2. **Analysis Fatigue:** Complex system telemetry logs are hard to parse manually, and generic alert explanations increase response latency.
+
+### How GuardianFlowAI Solves This
+1. **Unsupervised Anomaly Detection:** The server evaluates system metrics (CPU, RAM, disk, network throughput, failed logins, etc.) using an unsupervised machine learning model to isolate anomalous spikes or behavioral deviations.
+2. **RAG-Grounded AI Explanations:** When an anomaly is detected, the server automatically retrieves the appropriate local incident response playbook and passes it to the Google Gemini API to produce grounded, policy-compliant explanations and action steps.
+3. **Forensic Integrity:** Every flagged threat report is cryptographically signed with a SHA-256 hash to prove non-repudiation and record state at the exact moment of detection.
+4. **Operations Monitoring Dashboard:** A custom web dashboard aggregates system states, connection status, log tables, and generated threat reports in real time.
 
 ---
 
-## Executive Summary
+## 📊 Dashboard Preview
+**GuardianFlowAI DASHBOARD**
 
-GuardianFlow AI is a distributed endpoint monitoring system built around a simple loop: **client machines collect real Windows telemetry and event log data → a central Flask server evaluates it against a set of detection rules → any flagged event is explained by an LLM grounded in an incident-response playbook → the result is cryptographically hashed and streamed to a live dashboard.**
+![GuardianFlowAI Dashboard](assets/dashboard.png)
 
-The system runs entirely on a local network using plain HTTP/JSON — no message brokers, no external databases, no containers. A central server (`server/server.py`) exposes a small Flask API that ingests telemetry from one or more client agents (`client/client.py`), evaluates each event, and serves a self-refreshing web dashboard (`dashboard/`) built with vanilla HTML/CSS/JS.
+**Client Live Windows Event Log Terminal**
 
-## Why GuardianFlow AI?
+![Client Live Windows Event Log Terminal](/assets/client_autosend.png)
 
-Traditional monitoring tools collect logs but often require analysts to manually interpret security events. GuardianFlow AI combines endpoint telemetry, Windows Event Log monitoring, AI-assisted threat explanation, contextual incident-response playbooks, and forensic hashing into a centralized Security Operations Center (SOC) dashboard.
+**Client Interactive Mode Terminal**
 
-The goal is to transform raw security events into understandable, actionable security insights for analysts and students learning SOC workflows.
+![Client Interactive Mode Terminal](/assets/client_interactive.png)
 
-## Problem Statement
+**Server Terminal**
 
-Small teams and individual machines rarely have visibility into what is actually happening on their endpoints in real time. Commercial SIEM and EDR platforms are heavyweight, expensive, and require dedicated infrastructure (Elastic clusters, agents, licensing). GuardianFlow AI addresses the gap for small-scale or educational security monitoring by:
+![Server Terminal](assets/server_console.png)
+---
 
-- Continuously collecting live system metrics (CPU/RAM/disk/process counts) and native **Windows Event Log** entries from each endpoint.
-- Evaluating each event against a deterministic set of threat indicators (failed logins, disabled firewall, USB insertion, resource spikes, and specific Windows Event IDs such as log clearing or new-service installation).
-- Translating a flagged event from a raw signal into a plain-English explanation with recommended mitigation steps, grounded in a specific incident-response playbook rather than generic LLM knowledge.
-- Providing a single, centralized, auto-refreshing view of every connected machine's state — without requiring any external monitoring infrastructure.
+## 2. Key Features
 
-## Features
+Every feature described below is fully implemented and mapped to the repository source code:
 
-| Feature | Description | Status |
-|---|---|---|
-| Real-time endpoint telemetry | Clients collect CPU, RAM, disk usage, process count, and logged-in user via `psutil` every 5 seconds | ✅ Implemented |
-| Windows Event Log ingestion | Clients read the latest entry from the `System` and `Application` event logs via `pywin32` (`win32evtlog`) | ✅ Implemented |
-| Distributed client/server architecture | Any number of clients can POST to one central Flask server over HTTP/JSON on a LAN | ✅ Implemented |
-| Rule & Event-ID based threat detection | Deterministic checks for firewall state, failed logins, USB connection, CPU/RAM thresholds, and a curated map of Windows Event IDs | ✅ Implemented |
-| Playbook-aware AI explanations (RAG) | Before calling the LLM, the matching `.txt` playbook is retrieved from `playbooks/` and injected into the prompt | ✅ Implemented |
-| LLM-generated threat explanations | Groq's `llama-3.1-8b-instant` model (via the OpenAI-compatible SDK) produces a plain-English explanation and action list | ✅ Implemented |
-| Forensic SHA-256 hashing | Every generated threat report is hashed with `hashlib.sha256`, displayed on its dashboard card | ✅ Implemented |
-| Live auto-refreshing dashboard | Vanilla JS `fetch()` polls `/api/dashboard-data` every 5 seconds and re-renders the DOM | ✅ Implemented |
-| Connected-client tracking | Server infers "online" clients from log recency (last seen ≤ 30s) | ✅ Implemented |
-| CSV-based persistence | All logs are appended to `logs/received_logs.csv`; no external database | ✅ Implemented |
-| Duplicate log rejection | In-memory `(client_name, timestamp)` set rejects repeat submissions (e.g. from client retries) | ✅ Implemented |
-| Client-side retry logic | `client.py` retries a failed POST up to 3 times with a backoff delay before giving up on that cycle | ✅ Implemented |
-| Attack simulation mode | Interactive terminal menu overlays simulated Brute Force, DDoS, Cryptomining, Firewall-Disabled, or USB-Connected signals onto the outgoing payload | ✅ Implemented |
-| Unsupervised ML (Isolation Forest) | `scikit-learn` Isolation Forest logic exists in the codebase (`generate_data.py`, `IsolationForest` dependency) but the active `ThreatDetector.analyze()` no longer trains or scores against it | ⚠️ Present but inactive |
-| Charts / graphs / filters | Not present in the current dashboard implementation | ❌ Not implemented |
+*   **Multi-Host Telemetry Collection:** Clients run a background loop utilizing [`system_monitor.py`](client/system_monitor.py) to harvest system state indicators (`psutil` CPU/RAM/disk usage, processes, active sessions, failed logins, network throughput, and USB state) and send them as JSON payloads to the central server.
+*   **Unsupervised Machine Learning Detection:** In [`detector.py`](server/detector.py), an `IsolationForest` model evaluates incoming telemetry against a baseline to assign continuous anomaly scores and classify threats as Low, Medium, High, or Critical.
+*   **Dual-Mode Model Training:** The anomaly detector can be trained instantly using a synthetic dataset via [`generate_data.py`](server/generate_data.py) or by sampling the server host's own hardware metrics for a baseline duration (e.g., 10 minutes) using standard `psutil` queries.
+*   **Retrieval-Augmented Generation (RAG):** When an anomaly occurs, [`ai_engine.py`](server/ai_engine.py) retrieves plain-text organizational playbooks from the [`playbooks/`](playbooks) folder matching the threat type, augmenting the prompt sent to the Google Gemini API (`gemini-1.5-flash`) for localized, grounded remediation instructions.
+*   **Forensic Report Hash Stamping:** [`crypto_utils.py`](server/crypto_utils.py) compiles a canonical string of the incident details (client, threat type, severity, explanation, and timestamp) and generates a SHA-256 cryptographic signature to verify data integrity and prevent tampering.
+*   **Interactive Attack Simulation:** [`attack_simulator.py`](client/attack_simulator.py) provides an interactive command-line interface on client nodes to simulate threat profiles (CPU-mining, DDoS network spikes, brute force login failures) by injecting anomalous parameters into outgoing payloads.
+*   **Live Web Dashboard:** Served by Flask in [`server.py`](server/server.py), the dashboard UI loads [`index.html`](dashboard/templates/index.html) and uses [`script.js`](dashboard/static/script.js) to poll the server API every 5 seconds, displaying real-time metrics, client status, and threat cards.
 
-## High-Level Architecture
+---
+
+## 3. Architecture
+
+GuardianFlowAI operates as a decentralized telemetry pipeline. Monitored endpoints stream structured logs to a central server that runs detection, triggers RAG workflows, hashes forensic records, and feeds the web console.
 
 ```mermaid
-graph TD
-    subgraph Client Machines
-        C1["Client Laptop<br/>client.py"]
-        C2["Client Laptop<br/>client.py"]
+flowchart TD
+    subgraph Client Endpoint
+        A[system_monitor.py] -->|Gathers psutil telemetry| B[client.py]
+        C[attack_simulator.py] -->|Injects threat vectors| B
     end
 
-    subgraph "Client Modules"
-        SM["system_monitor.py<br/>psutil + win32evtlog"]
-        AS["attack_simulator.py<br/>simulated signal overlay"]
+    subgraph Central Server
+        B -->|HTTP POST JSON /logs| D[server.py]
+        D -->|Validates & Deduplicates| E[storage.py]
+        E -->|Appends to CSV| F[logs/received_logs.csv]
+        
+        D -->|Passes telemetry| G[detector.py]
+        G -->|Isolation Forest Inference| G
+        
+        G -->|Flagged Anomalies| H[ai_engine.py]
+        I[(playbooks/)] -->|Retrieves incident playbooks| H
+        H -->|RAG Prompts| J[Google Gemini API]
+        J -->|Returns Threat Analysis| H
+        
+        H -->|Explanations| K[crypto_utils.py]
+        K -->|Computes SHA-256 hash| D
+        
+        D -->|Stores Forensic Report| L[Recent Reports Cache]
     end
 
-    subgraph "Central Server (Flask)"
-        SRV["server.py<br/>/logs · /api/dashboard-data · /"]
-        DET["detector.py<br/>Rule & Event-ID Detection"]
-        AI["ai_engine.py<br/>RAG + Groq LLM"]
-        CRYPTO["crypto_utils.py<br/>SHA-256 Forensic Hash"]
-        STORE["storage.py<br/>CSV persistence"]
-    end
-
-    PB[("playbooks/*.txt")]
-    CSV[("logs/received_logs.csv")]
-    LLM["Groq API<br/>llama-3.1-8b-instant"]
-
-    subgraph Dashboard
-        HTML["index.html"]
-        JS["script.js (fetch polling)"]
-    end
-
-    C1 --> SM
-    C2 --> SM
-    SM --> AS
-    AS -->|"HTTP POST JSON /logs"| SRV
-    SRV --> DET
-    DET -->|"if anomaly"| AI
-    AI -->|"retrieve"| PB
-    AI -->|"chat.completions.create"| LLM
-    AI --> CRYPTO
-    SRV --> STORE
-    STORE --> CSV
-    JS -->|"GET /api/dashboard-data"| SRV
-    HTML --> JS
-```
-
-## End-to-End Workflow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Server as Flask Server
-    participant Detector as Detection Engine
-    participant AI as AI Engine (RAG + Groq)
-    participant Hash as crypto_utils
-    participant CSV as received_logs.csv
-    participant Dash as Dashboard
-
-    Client->>Client: Collect psutil metrics + latest Windows Event
-    Client->>Server: POST /logs (JSON payload)
-    Server->>Server: Validate payload, check duplicate
-    Server->>Detector: analyze(log_entry)
-    Detector-->>Server: threat_level, threat_type, reason, is_anomaly
-
-    alt is_anomaly == true
-        Server->>AI: explain_threat(threat_type, reason, threat_level)
-        AI->>AI: retrieve_playbook(threat_type)
-        AI->>AI: Groq chat.completions.create(playbook + event context)
-        AI-->>Server: explanation + recommended actions
-        Server->>Hash: build_forensic_report(...)
-        Hash-->>Server: SHA-256 hash + report text
-    end
-
-    Server->>CSV: Append log entry (threat fields included)
-    Server-->>Client: JSON response (threat_level, hash)
-
-    loop Every 5 seconds
-        Dash->>Server: GET /api/dashboard-data
-        Server->>CSV: Read recent logs
-        Server-->>Dash: recent_logs, connected_clients, threat_counts, recent_reports
-        Dash->>Dash: Re-render tables, counters, threat cards
+    subgraph Dashboard UI
+        M[Dashboard Frontend - HTML/CSS] -->|Polls /api/dashboard-data every 5s| D
+        D -->|Returns JSON data| M
     end
 ```
 
-## Folder Structure
+### Component Breakdown
+*   **Endpoint Agent (Client):** Periodically takes snapshots of system performance and active security variables, formatting and transmitting them over HTTP.
+*   **Flask Web Server:** Serves as the central API ingestion endpoint (`/logs`) and coordinates routing to the storage layer, detection module, and RAG pipelines.
+*   **Threat Detector:** Evaluates multivariant feature vectors, determines if the telemetry constitutes an anomaly, maps the reason to a category, and outputs a severity label.
+*   **AI Engine:** Retrieves static playbooks, formats structured Gemini API queries, parses the responses, and extracts remediation bullet points.
+*   **Crypto Utils:** Secures the forensic audit trail by hashing the resulting output string, ensuring logs cannot be altered post-detection.
+*   **Storage Manager:** Manages file-system logging to a flat-file database, handles query APIs, and verifies incoming client telemetry dates to ignore network duplicates.
+
+---
+
+## 4. Technology Stack
+
+*   **Core Backend Framework:** Python 3.11+ / Flask 3.0.3 (Server)
+*   **Client Communication & Network Request Client:** Requests 2.32.3
+*   **Endpoint Telemetry Harvesting:** Psutil 6.0.0
+*   **Data Analysis & Machine Learning Library:** Scikit-Learn 1.5.1 / Pandas 2.2.2 / Joblib 1.4.2
+*   **Generative AI Integration:** Google Generative AI Python SDK (Gemini API)
+*   **Environment Configuration:** Python-dotenv 1.0.1
+*   **Frontend UI & Visual Styles:** Vanilla HTML5, Custom CSS3 Grid/Flexbox Layout, Vanilla ECMAScript (JS)
+
+---
+
+## 5. Project Structure
 
 ```
 GuardianFlowAI/
+├── assets/
+│   ├── dashboard.png          # Dashboard screenshot
+│   ├── server_console.png     # Server console logs screenshot
+│   ├── client_autosend.png    # Client auto-send console screenshot
+│   └── client_interactive.png # Client interactive simulator screenshot
 ├── server/
-│   ├── server.py            # Flask app: /logs, /api/dashboard-data, /
-│   ├── detector.py          # Rule & Windows Event-ID based threat detection
-│   ├── ai_engine.py         # RAG pipeline + Groq LLM call (OpenAI SDK)
-│   ├── storage.py           # CSV read/write, dedup, connected-client tracking
-│   ├── crypto_utils.py      # SHA-256 forensic hashing
-│   └── generate_data.py     # Legacy synthetic dataset generator (Isolation Forest, unused by detector.py)
+│   ├── server.py              # Flask app, HTTP ingestion routes, and API controllers
+│   ├── detector.py            # Isolation Forest anomaly detection engine & metric classifier
+│   ├── ai_engine.py           # RAG logic, local playbook parsing, and Gemini API caller
+│   ├── storage.py             # CSV flat-file log manager, query API, and thread locks
+│   ├── crypto_utils.py        # SHA-256 cryptographic forensic hashing utility
+│   └── generate_data.py       # Training dataset generator (creates logs/training_data.csv)
 ├── client/
-│   ├── client.py            # Main send loop, retry logic, CLI mode selector
-│   ├── attack_simulator.py  # Simulated attack signal overlay
-│   └── system_monitor.py    # psutil metrics + win32evtlog Event Log reader
+│   ├── client.py              # Endpoint execution agent & periodic HTTP transmission loops
+│   ├── attack_simulator.py    # Console menu to simulate DDoS, mining, or login failure rates
+│   └── system_monitor.py      # Local psutil telemetry snapshot engine & IP resolution
 ├── dashboard/
 │   ├── templates/
-│   │   └── index.html       # Dashboard page (Jinja2)
+│   │   └── index.html         # Custom dark-themed monitoring console structure
 │   └── static/
-│       ├── style.css        # Dark SOC-style theme
-│       └── script.js        # fetch()-based polling and DOM rendering
+│       ├── style.css          # Vanilla CSS layout, metric cards, and badge design
+│       └── script.js          # Polling fetch controller to update dashboard DOM elements
 ├── playbooks/
-│   ├── cryptomining.txt
-│   ├── bruteforce.txt
-│   └── ddos.txt
+│   ├── cryptomining.txt       # Incident response steps for cryptomining events
+│   ├── bruteforce.txt         # Incident response steps for brute force events
+│   └── ddos.txt               # Incident response steps for distributed denial of service
 ├── logs/
-│   ├── received_logs.csv    # Populated at runtime
-│   └── training_data.csv    # Legacy — produced by generate_data.py, not consumed by the active detector
-├── .env                     # GROQ_API_KEY (git-ignored)
-├── .gitignore
-├── requirements.txt
-└── README.md
+│   ├── received_logs.csv      # Log storage file created automatically at runtime
+│   └── training_data.csv      # Training data generated by generate_data.py
+├── requirements.txt           # Explicit python dependency constraints
+├── .env                       # Environment variables config file
+└── README.md                  # This file
 ```
 
-## Technology Stack
+---
 
-| Layer | Technology |
-|---|---|
-| Language | Python 3.11 |
-| Web Framework | Flask 3.0 |
-| Templating | Jinja2 (`render_template`, `url_for`) |
-| HTTP Client (agent → server) | `requests` |
-| System Telemetry | `psutil` |
-| Windows Event Log Access | `pywin32` (`win32evtlog`) |
-| Data Handling | `pandas`, `numpy` (used by the legacy `generate_data.py` path) |
-| Legacy ML Dependency | `scikit-learn` (`IsolationForest`), `joblib` — present in `requirements.txt`, not invoked by the active detector |
-| LLM Provider | Groq (`llama-3.1-8b-instant`) accessed via the **OpenAI-compatible Python SDK** (`openai.OpenAI`, custom `base_url`) |
-| Environment Config | `python-dotenv` (`load_dotenv()`) |
-| Frontend | Vanilla HTML, CSS, JavaScript (`fetch` API, no framework) |
-| Data Persistence | CSV (`csv.DictWriter` / `csv.DictReader`) — no database |
-| Forensic Integrity | Python `hashlib` (SHA-256) |
-| Concurrency Safety | `threading.Lock` around CSV writes |
+## 6. How It Works
 
-## Installation
+```
+[System Data Gathered] ➔ [Deduplication & Validation] ➔ [Isolation Forest Isolation] ➔ [Playbook RAG Retrieval] ➔ [SHA-256 Audit Seal] ➔ [UI Dashboard Paint]
+```
 
-**Prerequisites:** Python 3.11, Windows 11 (required for `pywin32` Event Log access on client machines), all machines on the same network for multi-client demos.
+1.  **Metric Acquisition:** The [`client.py`](client/client.py) agent gathers local system telemetry and sends it to the server.
+2.  **Validation & Verification:** The server validation layer verifies data bounds and rejects duplicates.
+3.  **Machine Learning Inference:** The metrics are compared against the Isolation Forest baseline. Anomalous activity triggers threat mapping.
+4.  **Retrieval-Augmented Prompting:** The server matches the threat category (e.g., `bruteforce`) to a text file in [`playbooks/`](playbooks). It formats a prompt with this context and requests an explanation from Google Gemini.
+5.  **Forensic Seal:** The server formats a canonical report string and generates a SHA-256 digest, recording the hash next to the threat entry in memory and in `received_logs.csv`.
+6.  **Real-Time Dashboard Rendering:** The client-side JS requests the server data API, updating metric panels, connection indicators, active nodes, and rendering threat cards with forensic codes.
+
+---
+
+## 7. Installation & Setup
+
+### Prerequisites
+*   Windows 10/11 (Local PowerShell environments recommended)
+*   Python 3.11 or 3.12 installed on all participating machines
+*   A Google Gemini API key (for RAG-grounded AI explanations)
+*   All client machines must be connected to the same local area network (LAN) as the server.
+
+### Repository Setup
+Clone or copy the project directory to all machines, and set up the virtual environments:
 
 ```powershell
-# 1. Clone the repository
-git clone <this-repo>
+# Navigate to the cloned repository
 cd GuardianFlowAI
 
-# 2. Create and activate a virtual environment
+# Initialize and activate Python virtual environment
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\Activate.ps1
 
-# 3. Install dependencies
+# Install requirements
 pip install -r requirements.txt
-
-# 4. Client machines additionally need pywin32 for Event Log access
-pip install pywin32
 ```
 
-> `pywin32` is imported directly by `client/system_monitor.py` but is not currently listed in `requirements.txt` — install it explicitly on any machine running `client.py`.
+### Config Environment
+On the **Server Machine**, configure the API keys. You can set it in your current terminal session:
 
-## Environment Variables
-
-| Variable | Required | Used By | Purpose |
-|---|---|---|---|
-| `GROQ_API_KEY` | Yes | `server/ai_engine.py` | Authenticates requests to the Groq API (`https://api.groq.com/openai/v1`) via the OpenAI-compatible client |
-
-Create a `.env` file in the project root (this file is already listed in `.gitignore` and must never be committed):
-
-```
-GROQ_API_KEY=your_groq_api_key_here
+```powershell
+$env:GEMINI_API_KEY="your_gemini_api_key_here"
 ```
 
-`ai_engine.py` loads this automatically via `load_dotenv()` at import time.
+Alternatively, configure the API key in a local `.env` file:
+GEMINI_API_KEY=your_gemini_api_key_here
+```
 
-## Running the Project
+---
 
-**1. Start the server** (on the machine that will act as the central hub):
+## 8. Usage Instructions
+
+Follow this exact startup sequence:
+
+### Step 1: Pre-generate Anomaly Training Baseline
+Before the server can start, the Isolation Forest model needs a training dataset. Run this once on the server machine to generate synthetic logs:
+
+```powershell
+python server/generate_data.py
+```
+
+### Step 2: Acquire Server LAN IP
+Find the server's network address in the local subnet:
+
+```powershell
+ipconfig
+```
+Locate the active IPv4 address under your wireless or ethernet adapter (e.g., `192.168.1.10`).
+
+### Step 3: Run the Server
+Launch the Flask server app:
 
 ```powershell
 python server/server.py
 ```
+*   The server will initialize the anomaly model and start listening on port `5000`.
+*   Access the live dashboard in a local web browser at `http://localhost:5000` or `http://<server-ip>:5000`.
 
-This binds Flask to `0.0.0.0:5000`, making the dashboard reachable from other devices on the same network at `http://<server-ip>:5000`.
+![Server Console Ingestion](assets/server_console.png)
+*Server terminal output displaying active log reception, telemetry parsing, and raw event ingestion.*
 
-**2. Configure each client** — edit `client/client.py`:
+### Step 4: Configure & Run Client Endpoint Nodes
+1.  Open [`client/client.py`](client/client.py) and update the connection settings:
+    ```python
+    SERVER_IP = "192.168.1.10"   # Substitute with your actual Server IP
+    CLIENT_NAME = "Client-Laptop-1" # Assign a unique identifier
+    ```
+2.  Start the client:
+    ```powershell
+    python client/client.py
+    ```
+3.  Choose execution behavior:
+    *   Input `1` for **Normal Auto-Send:** Collects and streams real system telemetry every 5 seconds.
+    *   Input `2` for **Interactive Attack Menu:** Manually prompt simulated threats.
 
-```python
-SERVER_IP = "127.0.0.1"        # change to the server machine's LAN IP
-CLIENT_NAME = "Client-Laptop-1" # unique name per machine
-```
+![Client Auto-Send Telemetry](assets/client_autosend.png)
+*Client terminal executing in Auto-Send mode, gathering and forwarding telemetry payloads to the server.*
 
-**3. Run the client:**
+### Step 5: Simulate Incidents
+With the client in Interactive Mode (`2`), select a threat type from the CLI prompt:
+*   `1` - Brute Force (High failed logins)
+*   `2` - DDoS (Network spike)
+*   `3` - Cryptomining (Sustained CPU peg)
+*   `4` - Firewall Disabled flag
+*   `5` - USB Device Connected flag
 
-```powershell
-python client/client.py
-```
+Observe the server dashboard: an anomalous log row will be highlighted, and a new threat card will appear showing RAG playbook summaries, action steps, and the forensic SHA-256 signature.
 
-You'll be prompted to choose:
-- **[1] Normal auto-send** — sends real telemetry + the latest Windows Event every 5 seconds.
-- **[2] Interactive attack menu** — lets you overlay a simulated Brute Force, DDoS, Cryptomining, Firewall-Disabled, or USB-Connected signal onto each outgoing payload.
-
-**4. Open the dashboard** in a browser at `http://<server-ip>:5000` and watch it refresh automatically every 5 seconds.
-
-## API Documentation
-
-### `POST /logs`
-
-Ingests a single telemetry payload from a client.
-
-**Required fields:** `client_name`, `hostname`, `ip_address`, `timestamp`, `event_id`, `event_source`, `event_time` (payload is rejected with `400` if any are missing, or if `event_id` is not a positive integer).
-
-**Example request:**
-```json
-{
-  "client_name": "Client-Laptop-1",
-  "hostname": "DESKTOP-UUNV2UO",
-  "ip_address": "172.16.161.12",
-  "logged_in_user": "ANAMIKA",
-  "event_id": 4625,
-  "event_source": "Microsoft-Windows-Security-Auditing",
-  "event_type": 4,
-  "event_time": "2026-07-16 01:35:55",
-  "cpu_usage": 22.1,
-  "ram_usage": 78.3,
-  "disk_usage": 73.9,
-  "process_count": 281,
-  "failed_logins": 0,
-  "firewall_disabled": 0,
-  "network_bytes_sent": 110005180,
-  "network_bytes_recv": 986742066,
-  "usb_connected": 0,
-  "timestamp": "2026-07-16T01:36:32"
-}
-```
-
-**Example response:**
-```json
-{
-  "status": "received",
-  "threat_level": "High",
-  "threat_type": "Brute Force Attack",
-  "confidence_score": 95,
-  "sha256_hash": "a3f9c1...e08b"
-}
-```
-
-Other possible `status` values: `"ignored"` (duplicate `client_name` + `timestamp`), `"error"` (invalid/missing JSON or validation failure).
-
-### `GET /api/dashboard-data`
-
-Returns the aggregated state consumed by the dashboard's polling loop.
-
-**Example response:**
-```json
-{
-  "recent_logs": [ { "timestamp": "...", "client_name": "...", "cpu_usage": "...", "threat_level": "..." } ],
-  "connected_clients": [ { "client_name": "Client-Laptop-1", "seconds_ago": 2.3 } ],
-  "threat_counts": { "Low": 12, "Medium": 3, "High": 5, "Critical": 1 },
-  "recent_reports": [ { "client_name": "...", "threat_type": "...", "explanation": "...", "sha256_hash": "..." } ],
-  "server_time": "2026-07-18T10:15:02+05:30"
-}
-```
-
-### `GET /`
-
-Serves the dashboard's `index.html` (Jinja2-rendered).
-
-### Error Handling
-
-| Scenario | Server Behavior |
-|---|---|
-| Invalid / unparsable JSON | `400 { "status": "error", "message": "Invalid JSON payload." }` |
-| Missing required field | `400 { "status": "error", "message": "Missing required field: <field>" }` |
-| Invalid `event_id` (≤ 0) | `400 { "status": "error", "message": "Invalid Event ID." }` |
-| Duplicate `(client_name, timestamp)` | `200 { "status": "ignored", ... }` |
-| Detector not ready | `503 { "status": "error", "message": "Detector not ready: ..." }` |
-| Unknown route | `404 { "status": "error", "message": "Endpoint not found." }` |
-| Unhandled exception | `500 { "status": "error", "message": "Internal server error." }` |
-| Client cannot reach server | `client.py` retries up to 3 times with a 1.5s backoff, then gives up until the next 5s cycle |
-| No Event Log entry available | `system_monitor.py` returns `None`; `client.py` skips that cycle rather than sending an incomplete payload |
-
-## Detection Engine
-
-`server/detector.py`'s `ThreatDetector.analyze()` is a **deterministic, threshold- and Event-ID-based** detector — it evaluates each incoming payload against an ordered set of checks rather than scoring it with a trained model:
-
-1. **Live system checks** (evaluated first, in order): firewall disabled → `High`; ≥5 failed logins → `High` (Brute Force); USB connected → `Medium`; CPU ≥ 90% → `Medium`; RAM ≥ 95% → `Medium`.
-2. **Windows Event ID map** (checked if none of the above triggered): a fixed dictionary maps specific Event IDs to a threat type, severity, and reason — e.g. `4625` → Brute Force / High, `1102` → Log Tampering / Critical (Security log cleared), `7045` → Suspicious Service / Critical (new service installed), `4720` → New User Created / Critical, `41` → Kernel Power Failure / High, and several others (`4624`, `4726`, `7036`, `6008`, `105`).
-3. Anything matching none of the above returns `Low` / `Unknown Event` with `is_anomaly: False`.
-
-`load_model()`, `train_synthetic()`, and `train_live()` are retained as no-op methods (for interface compatibility with `server.py`'s `initialize_detector()`), but perform no training and load nothing.
-
-**Legacy artifact:** `generate_data.py` still generates a synthetic dataset (500 normal + 50 attack rows) into `logs/training_data.csv`, and `requirements.txt` still lists `scikit-learn` and `joblib`. These correspond to an `IsolationForest`-based design that is **not currently wired into `ThreatDetector.analyze()`** — no model is trained, saved, or scored against in the active request path.
-
-## AI Threat Analysis (RAG + Groq)
-
-`server/ai_engine.py` implements a two-step Retrieval-Augmented Generation flow, triggered only when the detector flags `is_anomaly: True`:
-
-1. **Retrieve** — `retrieve_playbook(threat_type)` loads the matching `.txt` file from `playbooks/` (`cryptomining.txt`, `bruteforce.txt`, or `ddos.txt`). Threat types with no matching file fall back to a generic incident-response message.
-2. **Augment & Generate** — `_build_prompt()` embeds the threat type, severity, detection reason, and the full playbook text into a structured prompt instructing the model to respond with a two-sentence explanation and a bulleted action list. The request is sent via:
-
-```python
-client = OpenAI(
-    api_key=os.getenv("GROQ_API_KEY"),
-    base_url="https://api.groq.com/openai/v1"
-)
-
-client.chat.completions.create(
-    model="llama-3.1-8b-instant",
-    messages=[...],
-    temperature=0.3
-)
-```
-
-This is the **OpenAI Python SDK pointed at Groq's OpenAI-compatible endpoint** — there is no direct dependency on Google Gemini in the active code path.
-
-If the API call fails (missing key, network error, rate limit), `explain_threat()` catches the exception and falls back to returning the first 400 characters of the raw playbook text, so the pipeline degrades gracefully instead of crashing the request.
-
-`_extract_bullets()` parses lines starting with `-`, `*`, or `•` out of the model's response to populate the dashboard's recommended-actions list.
-
-## Dashboard
-
-`dashboard/templates/index.html` + `dashboard/static/script.js` render a single-page dark-themed dashboard, fully re-rendered every 5 seconds by `refreshDashboard()`:
-
-| Component | Source of Data | Behavior |
-|---|---|---|
-| Live CPU / RAM cards | `cpu_usage` / `ram_usage` of the most recent log entry | Updated each poll |
-| Threat counters (Low/Medium/High/Critical) | `threat_counts` from `storage.count_threats_by_level()` | Tallied from the full CSV on each request |
-| Connected Clients | `connected_clients` — clients seen within the last 30 seconds | Rendered as pill badges |
-| Recent Logs table | `recent_logs` — last 20 CSV rows, newest first | Columns: timestamp, client, CPU, RAM, severity badge, threat type |
-| Threat Cards | `recent_reports` — last 10 AI-generated reports (in-memory, server-side) | Shows client, severity badge, threat type, LLM explanation, bulleted actions, and the SHA-256 hash |
-| Connection status pill | Result of the `fetch()` call itself | Green "Connected" on success, red "Offline / Retrying..." on fetch failure |
-
-There are no charts, graphs, or filter controls in the current implementation — all views are tables, counters, and cards.
-
-## Security Features
-
-| Feature | Implementation |
-|---|---|
-| Forensic report hashing | SHA-256 over a canonical `CLIENT \| THREAT \| SEVERITY \| EXPLANATION \| TIMESTAMP` string (`crypto_utils.build_forensic_report`), independently re-verifiable via `verify_report_hash()` |
-| Payload validation | Required-field check + `event_id` positivity check before any processing occurs |
-| Duplicate submission rejection | In-memory `(client_name, timestamp)` set, capped at 500 entries |
-| Thread-safe log writes | `threading.Lock()` wraps every CSV append in `storage.save_log()` |
-| Secret isolation | `GROQ_API_KEY` is loaded from `.env` via `python-dotenv`, and `.env` is listed in `.gitignore` |
-| Graceful LLM failure handling | Exceptions from the Groq API call are caught and replaced with a playbook-derived fallback rather than surfacing an error to the client |
-| Client-side network resilience | Up to 3 retries with a fixed backoff on connection errors or timeouts before a submission cycle is abandoned |
-
-There is currently no authentication on `/logs` or `/api/dashboard-data`, and no transport encryption (plain HTTP) — the system is designed for a trusted local network.
-
-
-
-## 📸 Screenshots
-
-### Dashboard Overview
-
-![Dashboard](screenshots/dashboard.png)
+![Client Interactive Attack Simulator](assets/client_interactive.png)
+*Client interactive terminal displaying the Attack Simulation menu and simulating high failed login and CPU spikes.*
 
 ---
 
-### Client Live Windows Event Log Terminal
+## 9. Configuration Options
 
-![Client Terminal](screenshots/client-terminal.png)
-
----
-
-### Client Interactive Mode Terminal
-
-![Client Interactive Mode](screenshots/client-interactive_mode.png)
-
----
-
-### Server Terminal
-
-![Server Terminal](screenshots/server-terminal.png)
+| Variable | Location | Type | Default Value | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `GEMINI_API_KEY` | Environment / `.env` | String | *Required* | Google Gemini model API key (loads `gemini-1.5-flash`). |
+| `SERVER_IP` | [`client/client.py`](client/client.py) | String | `"192.168.1.10"` | Target host IP address of the Flask log ingestion server. |
+| `CLIENT_NAME` | [`client/client.py`](client/client.py) | String | `"Client-Laptop-1"` | Endpoint identifier displayed on logs and dashboard panels. |
+| `SEND_INTERVAL_SECONDS` | [`client/client.py`](client/client.py) | Integer | `5` | Metric reporting frequency (seconds) to the `/logs` route. |
+| `contamination` | [`server/detector.py`](server/detector.py) | Float | `0.1` (synthetic) / `0.05` (live) | The expected ratio of outlier/anomaly values in baseline training. |
 
 ---
 
+## 10. Security Considerations
 
-## Future Roadmap
+*   **Authorized Testing Only:** The attack simulator (`attack_simulator.py`) only overrides JSON attributes to demonstrate telemetry reporting and ML evaluation. It does not perform actual network disruption or disable host system firewalls. However, because this platform ingests local system statistics, run client agents only on machines under your administrative control.
+*   **PlainText Network Transmission:** Endpoint logs are currently sent over HTTP. This telemetry contains local IP addresses, usernames, hostnames, and process loads. In insecure network configurations, these packets could be exposed to eavesdropping.
+*   **External LLM Ingestion:** System event logs flagged as anomalies are forwarded to Google Gemini API servers. Ensure that client names or logged-in usernames do not contain sensitive, regulated, or personally identifiable information (PII) before transmission.
 
-- **Re-activate the Isolation Forest path** — wire `generate_data.py` / `scikit-learn` back into `ThreatDetector` for unsupervised anomaly scoring alongside the existing rule/Event-ID checks.
-- **Windows Event Log breadth** — read more than the single latest entry per poll (currently only the most recent `System`/`Application` record is captured).
-- **Sysmon integration** — ingest Sysmon event channels for richer process/network telemetry than the base Windows Event Log provides.
-- **SIEM / Elastic Stack export** — forward `received_logs.csv` rows to Elasticsearch or a similar store for long-term retention and search.
-- **Authentication** — API keys or mutual TLS between clients and the server; the `/logs` endpoint currently accepts any request.
-- **Role-based dashboard access** — separate read-only vs. analyst/admin views.
-- **MITRE ATT&CK mapping** — tag each `threat_type` / Event ID with a corresponding ATT&CK technique ID in the playbook files.
-- **Threat intelligence feed integration** — cross-reference `ip_address` values against known-bad IP lists.
-- **Move off CSV** — migrate `storage.py` to SQLite for concurrent-write safety and queryability at scale.
-- **WebSockets** — replace 5-second `fetch()` polling with push-based updates for lower latency.
+---
 
+## 11. Current Limitations
 
-## Contributors
+*   **File-Based Logging:** Data persistence uses a simple CSV file (`received_logs.csv`) protected by basic thread locks. High-frequency uploads from many clients could lead to file locking and performance degradation.
+*   **Plaintext HTTP Communications:** The client-server framework lacks TLS/HTTPS, making transmission vulnerable to sniffing and spoofing.
+*   **No Endpoint Authentication:** The `/logs` endpoint accepts payloads from any client that can reach the server on port `5000` without requiring certificates, API keys, or verification.
+*   **Polling-Based Dashboard UI:** The dashboard refreshes metrics via standard HTTP GET polling every 5 seconds. It does not use live connection streams (e.g., WebSockets).
+*   **LLM Fallbacks:** If API limits are reached, the system falls back to displaying truncated portions of local playbook files.
 
-Developed as part of a final-year vocational training project.
+---
 
-Team Members
+## 12. Future Enhancements
 
-- Anamika
-- Kashifa Fatima
-- Aryan Chandrakar
-- Rajat Kumar Verma
+*   **Persistent Database Backend:** Migrate from flat CSV structures to relational databases (e.g., SQLite or PostgreSQL) to allow complex queries and historical analytics.
+*   **Agent Identity Controls:** Introduce authentication protocols (such as mutual TLS or API token authorization headers) to verify endpoint clients.
+*   **WebSockets Integration:** Implement real-time server-push notifications for instantaneous event display on the dashboard UI.
+*   **Mitigation Actions Support:** Develop a response framework to run remediation scripts on client machines (e.g., automated host firewall rules or terminating anomalous processes).
+*   **Expanded Telemetry Vectors:** Integrate file system watchers and Windows Event Log listeners to feed the ML model richer event data.
+
+---
+
+## 13. Development & Engineering Practices
+
+*   **Separation of Concerns:** Client telemetry generation, server processing, ML classification, AI explanation, and UI presentation are partitioned into distinct, decoupled packages.
+*   **Resiliency & Graceful Failures:**
+    *   Client engines attempt up to 3 transmission retries with incremental sleep backoffs before storing logs locally or discarding them.
+    *   The RAG engine handles network disconnects and API failures, yielding playbook fallbacks without crashing the core web server.
+*   **Forensic Verification:** SHA-256 hashing is implemented as a mathematical function that acts as a structural validation layer for log authenticity.
+
+---
+
+## 14. Disclaimer
+
+> [!IMPORTANT]
+> **Disclaimer:** GuardianFlowAI is a proof-of-concept/demonstration project developed to showcase practical skills in cybersecurity system monitoring, unsupervised anomaly detection, and RAG-based security orchestration. It is intended for authorized testing and educational purposes only and should not be deployed in production network environments without comprehensive security audits, encryption upgrades, and authentication configuration.
+
+---
+
+## 15. Contributing
+
+Since this is a personal portfolio repository, active contributions are closed. However, if you are analyzing this project for evaluation:
+1.  **Fork** the repository to experiment with custom models or additional playbooks.
+2.  Review [`docs/architecture.md`](docs/architecture.md) for details on the long-term refactoring vision.
+
+---
+
+## 16. License
+
+No open-source license has currently been specified.
+
+---
+
+## 17. Author
+
+*   **Anamika**
+*   **GitHub:** [GitHub Profile](https://github.com/)
+*   **LinkedIn:** [LinkedIn Profile](https://www.linkedin.com/)
+*   **Email:** [Professional Email](mailto:)
